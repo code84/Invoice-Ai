@@ -18,9 +18,6 @@ Upload a vendor invoice PDF and get an explainable approval decision in seconds 
 
 </div>
 
-> [!NOTE]
-> The demo backend runs on a free Render instance, so the first request after a period of inactivity can take up to ~60 seconds while it wakes up. Its filesystem is ephemeral, so uploaded data resets on redeploy.
-
 ---
 
 ## 📑 Table of Contents
@@ -127,9 +124,6 @@ flowchart LR
 | 9 | `rules` | All 11 business rules evaluated |
 | 10 | `decision` | Final status set with explanation and recommended action |
 
-> [!TIP]
-> If an early stage fails, the remaining stages are marked **Skipped** and the run is recorded as `failed`, so nothing is silently lost.
-
 ---
 
 ## 📏 Business Rules Engine
@@ -225,9 +219,6 @@ npm run dev
 | Swagger UI | http://localhost:8000/docs |
 | ReDoc | http://localhost:8000/redoc |
 
-> [!TIP]
-> Try it immediately: upload `backend/test_invoices/invoice_happy_path.pdf` for an **Approved** result, or `invoice_duplicate.pdf` / `invoice_po_mismatch.pdf` to see **Rejected** outcomes.
-
 ---
 
 ## 🔧 Configuration
@@ -249,9 +240,6 @@ npm run dev
 | Variable | Example | Description |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the backend API |
-
-> [!WARNING]
-> **Never commit `.env` files or API keys.** `.gitignore` already excludes them. If a key has ever been shared or committed, revoke and rotate it.
 
 ---
 
@@ -378,8 +366,6 @@ Sample invoices live in `backend/test_invoices/`:
 | `invoice_missing_number.pdf` / `ec02_missing_number.pdf` | ⚠️ Needs Review (R04) |
 | `ec04_poor_scan.pdf` | ⚠️ Needs Review (R07) |
 
-> Sample PDFs are git-ignored by default; regenerate them with `python create_test_invoices.py` and `python create_edge_case_invoices.py`.
-
 ---
 
 ## ☁️ Deployment
@@ -399,11 +385,9 @@ Sample invoices live in `backend/test_invoices/`:
 
 3. `backend/start.py` is the production entrypoint: it creates tables, **auto-seeds** vendors and POs if the database is empty, then starts Uvicorn on Render's `$PORT`.
 
-> [!IMPORTANT]
-> Scanned-PDF support requires the **Tesseract** binary to be available at runtime. On Render the `render.yaml` build command installs it automatically (`apt-get install -y tesseract-ocr`). For other platforms, install Tesseract manually (see [Prerequisites](#prerequisites)).
+Scanned-PDF support requires the **Tesseract** binary at runtime. The `render.yaml` build command installs it automatically (`apt-get install -y tesseract-ocr`). For other platforms, install Tesseract manually (see [Prerequisites](#prerequisites)).
 
-> [!NOTE]
-> SQLite and uploaded files live on the container's ephemeral disk. For production use, switch `DATABASE_URL` to PostgreSQL and store PDFs in object storage (S3 / GCS).
+For production use, switch `DATABASE_URL` to PostgreSQL and store uploaded PDFs in object storage (S3 / GCS).
 
 ### Frontend → Vercel
 
