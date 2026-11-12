@@ -1,10 +1,9 @@
 services:
   - type: web
     name: invoice-ai-backend
-    runtime: python
-    rootDir: backend
-    buildCommand: apt-get update -y && apt-get install -y tesseract-ocr libgl1 libglib2.0-0 && pip install -r requirements.txt
-    startCommand: python start.py
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     envVars:
       - key: AI_PROVIDER
         value: gemini
@@ -15,6 +14,4 @@ services:
       - key: TOLERANCE_THRESHOLD
         value: "0.02"
       - key: ALLOWED_ORIGINS
-        sync: false
-      - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "https://frontendupdated-two.vercel.app"
