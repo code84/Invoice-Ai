@@ -3,8 +3,9 @@
 An AI-powered, end-to-end Accounts Payable automation platform. Upload any vendor invoice PDF and receive a fully-reasoned approval decision in seconds — with a complete audit trail.
 
 > **Live Demo**
-> - Frontend: [Vercel — link added after deploy]
-> - Backend API: [Render — link added after deploy]
+> - Frontend: https://frontendupdated-two.vercel.app
+> - Backend API: https://invoice-ai-backend-b2bd.onrender.com
+> - API Docs (Swagger): https://invoice-ai-backend-b2bd.onrender.com/docs
 
 ---
 
