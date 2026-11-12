@@ -68,7 +68,7 @@ def _parse_response(content: str, ocr_confidence: float, provider: str) -> dict:
 def _extract_gemini(raw_text: str, ocr_confidence: float) -> dict:
     import google.generativeai as genai
     genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     prompt = (
         EXTRACTION_SYSTEM_PROMPT
         + f"\n\nExtract all invoice fields from the following text:\n\n{raw_text[:8000]}"
