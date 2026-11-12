@@ -1,9 +1,10 @@
 services:
   - type: web
     name: invoice-ai-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py
     envVars:
       - key: AI_PROVIDER
         value: gemini
@@ -14,4 +15,6 @@ services:
       - key: TOLERANCE_THRESHOLD
         value: "0.02"
       - key: ALLOWED_ORIGINS
-        value: "https://frontendupdated-two.vercel.app"
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.11.0"

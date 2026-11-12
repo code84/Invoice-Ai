@@ -1,431 +1,300 @@
-# Intelligent Invoice Processing System
+<div align="center">
 
-An AI-powered, end-to-end Accounts Payable automation platform. Upload any vendor invoice PDF and receive a fully-reasoned approval decision in seconds — with a complete audit trail.
+# 🧾 InvoiceAI — Intelligent Invoice Processing
 
-> **Live Demo**
-> - Frontend: https://frontendupdated-two.vercel.app
-> - Backend API: https://invoice-ai-backend-fdsf.onrender.com
-> - API Docs (Swagger): https://invoice-ai-backend-fdsf.onrender.com/docs
+**AI-powered, end-to-end Accounts Payable automation.**
+Upload a vendor invoice PDF and get an explainable approval decision in seconds — with a complete audit trail.
 
----
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00)](https://www.sqlalchemy.org)
+[![Gemini](https://img.shields.io/badge/AI-Gemini%20%7C%20OpenAI-8E75B2?logo=googlegemini&logoColor=white)](#-tech-stack)
 
-## Table of Contents
+[**Live Demo**](https://frontendupdated-two.vercel.app) · [**API Docs (Swagger)**](https://invoice-ai-backend-fdsf.onrender.com/docs) · [**Report a Bug**](../../issues)
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Processing Pipeline](#processing-pipeline)
-- [Business Rules Engine](#business-rules-engine)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Local Setup](#local-setup)
-  - [Backend Setup](#backend-setup)
-  - [Frontend Setup](#frontend-setup)
-- [Configuration](#configuration)
-- [Running Locally](#running-locally)
-- [Deployment](#deployment)
-  - [Backend → Render](#backend--render)
-  - [Frontend → Vercel](#frontend--vercel)
-- [API Reference](#api-reference)
-- [Seed Data](#seed-data)
-- [Database Schema](#database-schema)
-- [Testing](#testing)
+</div>
+
+> [!NOTE]
+> The demo backend runs on a free Render instance, so the first request after a period of inactivity can take up to ~60 seconds while it wakes up. Its filesystem is ephemeral, so uploaded data resets on redeploy.
 
 ---
 
-## Overview
+## 📑 Table of Contents
 
-This system automates the entire invoice review workflow for an Accounts Payable team. It accepts PDF invoices (both digital and scanned), extracts all fields using AI, validates them against vendor master data and purchase orders, runs a deterministic rules engine, and produces one of three final decisions:
-
-| Decision | Meaning |
-|---|---|
-| **Approved** | All checks passed — safe to process for payment |
-| **Needs Review** | One or more soft-warning rules triggered — AP team must verify |
-| **Rejected** | A blocking rule fired (duplicate, unknown vendor, PO mismatch, etc.) |
-
-Every decision is backed by a step-by-step audit trail visible in the UI.
-
----
-
-## Features
-
-- **PDF Classification** — Automatically detects digital vs. scanned PDFs
-- **OCR Support** — Tesseract OCR for scanned / image-based invoices
-- **AI Field Extraction** — Google Gemini or OpenAI extracts structured JSON from raw invoice text
-- **Data Normalization** — Cleans dates, amounts, currency codes and flags missing fields
-- **Arithmetic Validation** — Checks subtotal + tax = total and line item sums
-- **Vendor Verification** — Fuzzy name matching + GSTIN/Tax ID lookup against vendor master
-- **PO Matching** — Links invoice to the correct Purchase Order with ownership and balance check
-- **Duplicate Detection** — Two-tier system: exact match (blocking) and fuzzy/circumstantial (review)
-- **11 Business Rules** — Deterministic rule evaluation covering all AP scenarios
-- **Real-time Progress** — Live pipeline stage updates streamed to the UI
-- **Full Audit Trail** — Every stage, validation check, and rule outcome is persisted
-- **Dashboard** — Live stats, recent invoices table, and feature overview
-- **View Original PDF** — Every processed invoice links back to the original uploaded file
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Architecture](#-architecture)
+- [Processing Pipeline](#-processing-pipeline)
+- [Business Rules Engine](#-business-rules-engine)
+- [Tech Stack](#-tech-stack)
+- [Quick Start](#-quick-start)
+- [Configuration](#-configuration)
+- [API Reference](#-api-reference)
+- [Seed Data](#-seed-data)
+- [Database Schema](#-database-schema)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+- [Project Structure](#-project-structure)
+- [Troubleshooting](#-troubleshooting)
+- [Roadmap](#-roadmap)
 
 ---
 
-## Tech Stack
+## 🔍 Overview
 
-### Backend
+InvoiceAI automates the invoice-review workflow of an Accounts Payable team. It accepts PDF invoices (digital **and** scanned), extracts every field with an LLM, validates them against the vendor master and purchase orders, runs a deterministic rules engine, and produces one of three decisions:
 
-| Component | Technology |
-|---|---|
-| Framework | FastAPI 0.115 |
-| Database ORM | SQLAlchemy 2.0 |
-| Database | SQLite (file-based) |
-| PDF parsing | PyMuPDF (fitz) |
-| OCR | Tesseract via pytesseract |
-| AI extraction | Google Gemini (`gemini-1.5-flash`) / OpenAI (`gpt-4o-mini`) |
-| Fuzzy matching | thefuzz |
-| Async file I/O | aiofiles |
-| Data validation | Pydantic v2 + pydantic-settings |
-| Date parsing | python-dateutil |
-| Server | Uvicorn (ASGI) |
-
-### Frontend
-
-| Component | Technology |
-|---|---|
-| Framework | Next.js 15 (App Router) |
-| UI library | React 19 |
-| Language | TypeScript 5.6 |
-| Styling | Tailwind CSS 3.4 |
-| Icons | Lucide React |
-| HTTP client | Axios |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────┐       ┌──────────────────────────────────┐
-│         Next.js Frontend        │       │          FastAPI Backend          │
-│  (localhost:3000 / Vercel)      │◄─────►│  (localhost:8000 / Render)       │
-│                                 │  API  │                                  │
-│  /           Dashboard          │       │  POST /api/invoices/upload        │
-│  /upload     Upload page        │       │  GET  /api/invoices/              │
-│  /invoices   Invoice list       │       │  GET  /api/invoices/{id}          │
-│  /invoices/[id]  Detail view    │       │  GET  /api/invoices/runs/{id}     │
-│  /runs/[id]  Run detail         │       │  GET  /api/dashboard/             │
-└─────────────────────────────────┘       └──────────────┬───────────────────┘
-                                                         │
-                                          ┌──────────────▼───────────────────┐
-                                          │      Processing Pipeline          │
-                                          │  upload → classify → extract_text │
-                                          │  → ai_extract → normalize         │
-                                          │  → validate → vendor_po           │
-                                          │  → duplicate → rules → decision   │
-                                          └──────────────────────────────────┘
-```
-
----
-
-## Processing Pipeline
-
-Each uploaded invoice passes through 10 sequential stages:
-
-| Stage | Name | Description |
+| Decision | Meaning | Typical cause |
 |---|---|---|
-| 1 | **upload** | File saved to disk, Invoice record created |
-| 2 | **classify** | PDF classified as `digital` or `scanned` based on embedded-text ratio |
-| 3 | **extract_text** | Text extracted via PyMuPDF (digital) or Tesseract OCR (scanned) |
-| 4 | **ai_extract** | Raw text sent to Gemini / OpenAI; structured JSON returned |
-| 5 | **normalize** | Dates, amounts, currencies cleaned; missing fields identified |
-| 6 | **validate** | Arithmetic checks (subtotal + tax = total, line item sums) |
-| 7 | **vendor_po** | Vendor looked up by GSTIN then fuzzy name; PO matched and balance updated |
-| 8 | **duplicate** | Two-tier duplicate detection (exact + fuzzy/circumstantial) |
-| 9 | **rules** | All 11 business rules evaluated |
-| 10 | **decision** | Final status set with explanation and recommended action |
+| ✅ **Approved** | All checks passed — safe to pay | Clean invoice matching vendor and PO |
+| ⚠️ **Needs Review** | Soft warnings — an AP user must verify | Low OCR confidence, missing invoice number, amount variance > 2% |
+| ❌ **Rejected** | A blocking rule fired | Duplicate, unknown/inactive vendor, PO mismatch, currency mismatch |
 
-> If an early stage fails, all remaining stages are stubbed as "Skipped" and the run is marked `failed`.
+AI is used **only for extraction**. Every approval decision comes from deterministic, explainable rules, so results are consistent and auditable.
 
 ---
 
-## Business Rules Engine
+## ✨ Key Features
 
-Eleven deterministic rules fire against all evidence collected from prior stages:
-
-| Rule | Severity | Trigger Condition |
+| | Feature | Description |
 |---|---|---|
-| R01 — Duplicate invoice | BLOCKING | Exact invoice number + same vendor already approved/in-review |
-| R01 — Resubmission | REVIEW | Exact match against a previously *rejected* invoice |
-| R01 — Possible duplicate | REVIEW | Same vendor + same amount + same date (fuzzy number match) |
-| R02 — Vendor not found | BLOCKING | Vendor name/GSTIN not in vendor master |
-| R03 — Vendor inactive | BLOCKING | Vendor found but status is not `approved` |
-| R04 — Missing invoice number | REVIEW | Invoice number could not be extracted |
-| R05 — Mandatory fields | REVIEW | Required fields (vendor, total, date) are absent |
-| R06 — Arithmetic failure | REVIEW | subtotal + tax ≠ total, or line items don't sum correctly |
-| R07 — Low confidence | REVIEW | Extraction confidence < 60% (always triggered for scanned PDFs) |
-| R08 — No PO match | BLOCKING / REVIEW | PO vendor mismatch (blocking) or PO not found (review) |
-| R09 — PO not approved | BLOCKING | Matched PO status is `inactive` or `closed` |
-| R10 — Currency mismatch | BLOCKING | Invoice currency differs from PO currency |
-| R11 — Amount tolerance | REVIEW | Invoice amount differs from PO by more than 2% |
-
-**Decision logic:**
-- Any BLOCKING rule triggered → `rejected`
-- One or more REVIEW rules triggered, no BLOCKING → `needs_review`
-- All rules passed → `approved`
+| 📄 | **PDF classification** | Detects digital vs. scanned PDFs from the embedded-text ratio |
+| 🔎 | **OCR** | Tesseract fallback for scanned / image-based invoices |
+| 🤖 | **AI field extraction** | Google Gemini (default) or OpenAI returns structured JSON |
+| 🧹 | **Normalization** | Cleans dates, amounts and currency codes; flags missing fields |
+| 🧮 | **Arithmetic validation** | Checks `subtotal + tax = total` and line-item sums |
+| 🏢 | **Vendor verification** | GSTIN / Tax ID first, then fuzzy name and alias matching |
+| 📦 | **PO matching** | Verifies PO ownership, status, currency and remaining balance |
+| 🔁 | **Duplicate detection** | Two tiers: exact (blocking) and fuzzy (review) |
+| 📏 | **11 business rules** | Deterministic evaluation with severity levels |
+| 📡 | **Live progress** | Stage-by-stage status in the UI while a run executes |
+| 🗂️ | **Audit trail** | Every stage, validation and rule outcome is persisted |
+| 📊 | **Dashboard & history** | Live stats, searchable invoice history, original PDF viewer |
 
 ---
 
-## Project Structure
+## 🏗 Architecture
 
+```mermaid
+flowchart LR
+    U([AP User]) --> FE["Next.js Frontend<br/>(Vercel)"]
+    FE -- "REST / JSON" --> API["FastAPI Backend<br/>(Render)"]
+    API --> PIPE[["10-stage Processing Pipeline"]]
+    PIPE --> OCR["PyMuPDF + Tesseract"]
+    PIPE --> LLM["Gemini / OpenAI"]
+    PIPE --> RULES["Rules Engine"]
+    API <--> DB[("SQLite<br/>SQLAlchemy ORM")]
+    API --> FS[("Uploaded PDFs")]
 ```
-Invoice_system/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                 # FastAPI app, CORS middleware, router registration
-│   │   ├── config.py               # Settings (env-driven via pydantic-settings)
-│   │   ├── database.py             # SQLAlchemy engine and session factory
-│   │   ├── models/
-│   │   │   └── models.py           # ORM models: Vendor, PurchaseOrder, Invoice, ProcessingRun...
-│   │   ├── schemas/
-│   │   │   └── schemas.py          # Pydantic request/response schemas
-│   │   ├── routers/
-│   │   │   ├── invoices.py         # Upload, list, detail, run status endpoints
-│   │   │   ├── vendors.py          # Vendor list and detail
-│   │   │   ├── purchase_orders.py  # PO list and detail
-│   │   │   └── dashboard.py        # Aggregate stats for dashboard
-│   │   └── services/
-│   │       ├── pipeline.py         # 10-stage orchestrator
-│   │       ├── pdf_extractor.py    # PyMuPDF + Tesseract OCR
-│   │       ├── ai_extractor.py     # Gemini / OpenAI extraction
-│   │       ├── normalizer.py       # Field cleaning and arithmetic validation
-│   │       ├── vendor_verifier.py  # Fuzzy vendor lookup
-│   │       ├── po_matcher.py       # PO matching and balance tracking
-│   │       ├── duplicate_detector.py  # Two-tier duplicate detection
-│   │       ├── rules_engine.py     # 11 business rules
-│   │       ├── decision_engine.py  # Final status from rule results
-│   │       └── run_manager.py      # Stage/run lifecycle helpers
-│   ├── seed_data.py                # Seed vendors and purchase orders
-│   ├── reset_demo.py               # Reset DB to clean state
-│   ├── requirements.txt
-│   ├── render.yaml                 # Render deployment config
-│   └── uploads/                   # Uploaded PDF files (created at runtime)
-│
-└── frontend_updated/               # Final production frontend
-    ├── app/
-    │   ├── page.tsx                # Dashboard (stats, recent invoices, feature cards)
-    │   ├── upload/page.tsx         # Invoice upload page
-    │   ├── invoices/               # Invoice list and detail pages
-    │   ├── runs/                   # Processing run live-progress page
-    │   ├── dashboard/              # Dashboard route
-    │   ├── icon.svg                # Custom blue favicon
-    │   └── layout.tsx              # Root layout with Navbar and Footer
-    ├── components/                 # Reusable UI components (Navbar, Footer, StatusBadge)
-    ├── lib/
-    │   ├── api.ts                  # All API client functions (axios)
-    │   └── types.ts                # TypeScript type definitions
-    ├── .env.local                  # Frontend env vars (not committed)
-    └── package.json
+
+**Frontend routes**
+
+| Route | Purpose |
+|---|---|
+| `/` | Landing page — product overview and features |
+| `/dashboard` | Live stats and recent invoices |
+| `/upload` | Upload an invoice PDF |
+| `/runs/[id]` | Live pipeline progress for a run |
+| `/invoices` | Searchable, filterable invoice history |
+| `/invoices/[id]` | Full invoice detail, validations, rule outcomes and original PDF |
+
+---
+
+## ⚙️ Processing Pipeline
+
+Every upload creates a *processing run* that passes through 10 sequential stages:
+
+```mermaid
+flowchart LR
+    A[1 upload] --> B[2 classify] --> C[3 extract_text] --> D[4 ai_extract] --> E[5 normalize]
+    E --> F[6 validate] --> G[7 vendor_po] --> H[8 duplicate] --> I[9 rules] --> J[10 decision]
+```
+
+| # | Stage | What happens |
+|---|---|---|
+| 1 | `upload` | File validated (PDF, max 20 MB), saved to disk, invoice record created |
+| 2 | `classify` | PDF classified as `digital` or `scanned` |
+| 3 | `extract_text` | Text via PyMuPDF (digital) or Tesseract OCR (scanned) |
+| 4 | `ai_extract` | Raw text sent to Gemini / OpenAI; structured JSON returned |
+| 5 | `normalize` | Dates, amounts and currencies cleaned; missing fields identified |
+| 6 | `validate` | Arithmetic checks on totals and line items |
+| 7 | `vendor_po` | Vendor looked up by GSTIN then fuzzy name; PO matched, balance checked |
+| 8 | `duplicate` | Exact and fuzzy duplicate detection |
+| 9 | `rules` | All 11 business rules evaluated |
+| 10 | `decision` | Final status set with explanation and recommended action |
+
+> [!TIP]
+> If an early stage fails, the remaining stages are marked **Skipped** and the run is recorded as `failed`, so nothing is silently lost.
+
+---
+
+## 📏 Business Rules Engine
+
+| Rule | Severity | Trigger |
+|---|---|---|
+| **R01** Duplicate invoice | 🔴 Blocking | Same invoice number + vendor already approved / in review |
+| **R01** Resubmission | 🟡 Review | Exact match against a previously *rejected* invoice |
+| **R01** Possible duplicate | 🟡 Review | Same vendor + amount + date with a fuzzy invoice-number match |
+| **R02** Vendor not found | 🔴 Blocking | Vendor name / GSTIN not in the vendor master |
+| **R03** Vendor inactive | 🔴 Blocking | Vendor found but status is not `approved` |
+| **R04** Missing invoice number | 🟡 Review | Invoice number could not be extracted |
+| **R05** Mandatory fields | 🟡 Review | Vendor, total or date is absent |
+| **R06** Arithmetic failure | 🟡 Review | Totals or line items don't add up |
+| **R07** Low confidence | 🟡 Review | Extraction confidence < 60% (always for scanned PDFs) |
+| **R08** No PO match | 🔴 / 🟡 | PO belongs to another vendor (blocking) or PO not found (review) |
+| **R09** PO not approved | 🔴 Blocking | Matched PO is `inactive` or `closed` |
+| **R10** Currency mismatch | 🔴 Blocking | Invoice currency differs from PO currency |
+| **R11** Amount tolerance | 🟡 Review | Invoice differs from PO by more than the tolerance (default 2%) |
+
+**Decision logic**
+
+```text
+any BLOCKING rule triggered                 →  rejected
+REVIEW rules triggered, none BLOCKING       →  needs_review
+no rules triggered                          →  approved
 ```
 
 ---
 
-## Prerequisites
+## 🧰 Tech Stack
 
-- **Python 3.10+**
-- **Node.js 18+** and **npm**
-- **Tesseract OCR** (required only for scanned / image-based PDFs)
-  - Windows: Download from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki), install to `C:\Program Files\Tesseract-OCR\`
+<table>
+<tr><th>Layer</th><th>Technologies</th></tr>
+<tr><td><b>Frontend</b></td><td>Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · Lucide Icons · Axios</td></tr>
+<tr><td><b>Backend</b></td><td>FastAPI · Uvicorn · SQLAlchemy 2.0 · Pydantic v2 · pydantic-settings</td></tr>
+<tr><td><b>Document AI</b></td><td>PyMuPDF · Tesseract (pytesseract) · Google Gemini (<code>gemini-2.5-flash</code>) · OpenAI (<code>gpt-4o-mini</code>)</td></tr>
+<tr><td><b>Matching</b></td><td>thefuzz (fuzzy string matching) · python-dateutil</td></tr>
+<tr><td><b>Data</b></td><td>SQLite (file-based)</td></tr>
+<tr><td><b>Hosting</b></td><td>Vercel (frontend) · Render (backend)</td></tr>
+</table>
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Python 3.10+** (3.11 recommended)
+- **Node.js 18+** and npm
+- **Tesseract OCR** — only needed for scanned PDFs
+  - Windows: [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki) → `C:\Program Files\Tesseract-OCR\`
   - macOS: `brew install tesseract`
-  - Ubuntu/Debian: `sudo apt install tesseract-ocr`
-- A **Google Gemini API key** (default) **or** an **OpenAI API key**
+  - Ubuntu / Debian: `sudo apt install tesseract-ocr`
+- A **Google Gemini** API key (default) **or** an **OpenAI** API key
 
----
+### 1. Clone
 
-## Local Setup
+```bash
+git clone <your-repo-url>
+cd Invoice_system
+```
 
-### Backend Setup
+### 2. Backend
 
 ```bash
 cd backend
-
-# Create and activate virtual environment
 python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
-
-# Install dependencies
+source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Seed vendors and purchase orders
-python seed_data.py
+cp .env.example .env              # then add your API key (see Configuration)
+python seed_data.py               # load vendors and purchase orders
+
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend Setup
+### 3. Frontend
 
 ```bash
 cd frontend_updated
-
 npm install
-```
-
----
-
-## Configuration
-
-### Backend — `backend/.env`
-
-```env
-# AI Provider: "gemini" (default) or "openai"
-AI_PROVIDER=gemini
-
-# Google Gemini API key (required if AI_PROVIDER=gemini)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# OpenAI API key (required if AI_PROVIDER=openai)
-OPENAI_API_KEY=sk-your_openai_key_here
-
-# SQLite database path (relative to backend/)
-DATABASE_URL=sqlite:///./invoice_system.db
-
-# Directory to store uploaded PDF files
-UPLOAD_DIR=uploads
-
-# Amount variance tolerance for PO matching (0.02 = 2%)
-TOLERANCE_THRESHOLD=0.02
-
-# Allowed CORS origins (comma-separated, used in production)
-ALLOWED_ORIGINS=http://localhost:3000
-```
-
-### Frontend — `frontend_updated/.env.local`
-
-```env
-# URL of the running backend API
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
----
-
-## Running Locally
-
-### Start the Backend
-
-```bash
-cd backend
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # macOS / Linux
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Start the Frontend
-
-```bash
-cd frontend_updated
+echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
 npm run dev
 ```
 
+### 4. Open
+
 | Service | URL |
 |---|---|
-| Frontend (UI) | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| Swagger API Docs | http://localhost:8000/docs |
-| ReDoc API Docs | http://localhost:8000/redoc |
+| Web app | http://localhost:3000 |
+| API | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| ReDoc | http://localhost:8000/redoc |
+
+> [!TIP]
+> Try it immediately: upload `backend/test_invoices/invoice_happy_path.pdf` for an **Approved** result, or `invoice_duplicate.pdf` / `invoice_po_mismatch.pdf` to see **Rejected** outcomes.
 
 ---
 
-## Deployment
+## 🔧 Configuration
 
-### Backend → Render
+### Backend — `backend/.env`
 
-1. Connect this GitHub repository to [Render](https://render.com)
-2. Create a new **Web Service**, set **Root Directory** to `backend`
-3. Render will auto-detect `render.yaml` — it sets the build and start commands automatically
-4. Add these **Environment Variables** in the Render dashboard:
+| Variable | Default | Description |
+|---|---|---|
+| `AI_PROVIDER` | `gemini` | `gemini` or `openai` |
+| `GEMINI_API_KEY` | — | Required when `AI_PROVIDER=gemini` |
+| `OPENAI_API_KEY` | — | Required when `AI_PROVIDER=openai` |
+| `DATABASE_URL` | `sqlite:///./invoice_system.db` | SQLAlchemy connection string |
+| `UPLOAD_DIR` | `uploads` | Where uploaded PDFs are stored |
+| `TOLERANCE_THRESHOLD` | `0.02` | Allowed invoice-vs-PO variance (2%) |
+| `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated CORS origins |
 
-| Variable | Value |
-|---|---|
-| `AI_PROVIDER` | `gemini` |
-| `GEMINI_API_KEY` | your Gemini API key |
-| `ALLOWED_ORIGINS` | your Vercel frontend URL (e.g. `https://your-app.vercel.app`) |
-| `UPLOAD_DIR` | `uploads` |
-| `TOLERANCE_THRESHOLD` | `0.02` |
+### Frontend — `frontend_updated/.env.local`
 
-> **Note:** Render's free tier uses an ephemeral filesystem — the SQLite database and uploaded PDFs reset on each redeploy. The app automatically re-seeds vendor/PO data on startup.
+| Variable | Example | Description |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the backend API |
+
+> [!WARNING]
+> **Never commit `.env` files or API keys.** `.gitignore` already excludes them. If a key has ever been shared or committed, revoke and rotate it.
 
 ---
 
-### Frontend → Vercel
+## 📡 API Reference
 
-1. Connect this GitHub repository to [Vercel](https://vercel.com)
-2. Set **Root Directory** to `frontend_updated`
-3. Framework will be auto-detected as **Next.js**
-4. Add this **Environment Variable** in the Vercel dashboard:
-
-| Variable | Value |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | your Render backend URL (e.g. `https://your-backend.onrender.com`) |
-
-5. Deploy — Vercel handles the build automatically.
-
----
-
-## API Reference
-
-### Health
+Interactive docs are served at `/docs` (Swagger) and `/redoc`.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/health` | Health check — returns `{"status": "ok"}` |
-
-### Dashboard
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/dashboard/` | Aggregate stats + 10 recent invoices |
-
-### Invoices
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/invoices/upload` | Upload a PDF invoice (multipart/form-data). Max 20 MB. |
-| `GET` | `/api/invoices/` | List all invoices (newest first) |
-| `GET` | `/api/invoices/{invoice_id}` | Full invoice detail including extracted fields and status |
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/dashboard/` | Aggregate stats and recent invoices |
+| `POST` | `/api/invoices/upload` | Upload a PDF (`multipart/form-data`, max 20 MB); starts a run |
+| `GET` | `/api/invoices/` | List invoices, newest first |
+| `GET` | `/api/invoices/{invoice_id}` | Invoice detail with extracted fields and status |
 | `GET` | `/api/invoices/{invoice_id}/runs` | All processing runs for an invoice |
-| `GET` | `/api/invoices/runs/{run_id}` | Full run detail: stages, validation results, audit events |
-| `GET` | `/api/invoices/runs/{run_id}/stream` | **SSE** — live stage-by-stage progress stream |
+| `GET` | `/api/invoices/runs/{run_id}` | Run detail: stages, validations, audit events |
+| `GET` | `/api/invoices/runs/{run_id}/stream` | Server-Sent Events stream of run progress |
+| `GET` | `/api/vendors/` · `/api/vendors/{vendor_id}` | Vendor master |
+| `GET` | `/api/purchase-orders/` · `/api/purchase-orders/{po_number}` | Purchase orders |
+| `GET` | `/uploads/{stored_filename}` | Original uploaded PDF |
 
-### Vendors
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/vendors/` | List all vendors in vendor master |
-| `GET` | `/api/vendors/{vendor_id}` | Single vendor detail |
-
-### Purchase Orders
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/purchase-orders/` | List all purchase orders |
-
-### Uploaded Files
-
-```
-GET /uploads/{stored_filename}
-```
-
----
-
-## Seed Data
-
-The `seed_data.py` script populates the database with 6 vendors and 7 purchase orders.
+<details>
+<summary><b>Example — upload an invoice with curl</b></summary>
 
 ```bash
-cd backend
-python seed_data.py
+curl -X POST http://localhost:8000/api/invoices/upload \
+  -F "file=@backend/test_invoices/invoice_happy_path.pdf"
 ```
 
-**Vendors:**
+The response is the processing-run summary. Poll `GET /api/invoices/runs/{run_id}` (or open the SSE stream) until `status` is no longer `running`.
 
-| ID | Legal Name | Currency | Tax ID | Status |
+</details>
+
+---
+
+## 🌱 Seed Data
+
+`seed_data.py` loads **6 vendors** and **7 purchase orders** for demos and tests.
+
+<details>
+<summary><b>Vendors</b></summary>
+
+| ID | Legal name | Currency | Tax ID | Status |
 |---|---|---|---|---|
 | V001 | ABC Technologies Pvt Ltd | INR | TEST-TAX-001 | approved |
 | V002 | XYZ Solutions Pvt Ltd | INR | TEST-TAX-002 | approved |
@@ -434,53 +303,181 @@ python seed_data.py
 | V005 | Pinnacle Consulting Group | INR | TEST-TAX-005 | approved |
 | V006 | Northwind Office Supplies Pvt. Ltd. | USD | 05AABCN1234F1Z5 | approved |
 
-**Purchase Orders:**
+</details>
 
-| PO Number | Vendor | Total Amount | Currency | Status |
+<details>
+<summary><b>Purchase orders</b></summary>
+
+| PO number | Vendor | Amount | Currency | Status |
 |---|---|---|---|---|
-| PO-10045 | ABC Technologies (V001) | 53,100.00 | INR | approved |
-| PO-10048 | ABC Technologies (V001) | 1,20,000.00 | INR | approved |
-| PO-10046 | XYZ Solutions (V002) | 25,000.00 | INR | approved |
-| PO-10047 | Global Services (V003) | 75,000.00 | INR | inactive |
-| PO-10049 | Northstar Systems (V004) | 26,500.00 | INR | approved |
-| PO-10050 | Pinnacle Consulting (V005) | 1,80,000.00 | INR | approved |
-| PO-2026-1093 | Northwind Office Supplies (V006) | 4,900.00 | USD | approved |
+| PO-10045 | V001 ABC Technologies | 53,100.00 | INR | approved |
+| PO-10048 | V001 ABC Technologies | 1,20,000.00 | INR | approved |
+| PO-10046 | V002 XYZ Solutions | 25,000.00 | INR | approved |
+| PO-10047 | V003 Global Services | 75,000.00 | INR | inactive |
+| PO-10049 | V004 Northstar Systems | 26,500.00 | INR | approved |
+| PO-10050 | V005 Pinnacle Consulting | 1,80,000.00 | INR | approved |
+| PO-2026-1093 | V006 Northwind Office Supplies | 4,900.00 | USD | approved |
 
-To reset to a clean demo state:
+</details>
+
+Reset to a clean demo state (clears invoices, runs and audit data; restores PO balances; keeps vendors and POs):
 
 ```bash
-cd backend
-python reset_demo.py
+cd backend && python reset_demo.py
 ```
 
 ---
 
-## Database Schema
+## 🗄 Database Schema
+
+```mermaid
+erDiagram
+    vendors ||--o{ purchase_orders : has
+    purchase_orders ||--o{ po_line_items : contains
+    vendors ||--o{ invoices : "billed by"
+    purchase_orders ||--o{ invoices : "matched to"
+    invoices ||--o{ processing_runs : "processed in"
+    processing_runs ||--o{ processing_stages : "has"
+    processing_runs ||--o{ validation_results : "produces"
+    processing_runs ||--o{ audit_events : "logs"
+```
 
 | Table | Description |
 |---|---|
-| `vendors` | Vendor master — legal name, aliases, tax ID, status |
+| `vendors` | Vendor master — legal name, aliases, tax ID, status, currency |
 | `purchase_orders` | PO header — vendor, amounts, currency, status, running balance |
-| `po_line_items` | PO line items — description, qty, unit price, amount |
-| `invoices` | Uploaded invoices — extracted fields, matched PO/vendor, final status |
-| `processing_runs` | One run per invoice upload — status, current stage, timestamps |
-| `processing_stages` | One row per pipeline stage per run — status, output summary |
-| `validation_results` | Arithmetic checks + business rule outcomes per run |
-| `audit_events` | Structured event log entries per run |
+| `po_line_items` | PO line items — description, quantity, unit price, amount |
+| `invoices` | Uploaded invoices — extracted fields, matched vendor / PO, final status |
+| `processing_runs` | One run per upload — status, current stage, timestamps |
+| `processing_stages` | One row per stage per run — status and output summary |
+| `validation_results` | Arithmetic checks and rule outcomes per run |
+| `audit_events` | Structured event log per run |
 
 ---
 
-## Testing
+## 🧪 Testing
+
+Run from `backend/` with the virtual environment active and the API key configured:
 
 ```bash
-cd backend
-venv\Scripts\activate
-
-python test_e2e.py           # End-to-end pipeline test
-python test_pipeline.py      # Happy path invoice
-python test_duplicate.py     # Duplicate detection
-python test_all_scenarios.py # Edge case invoices
-python test_phase4.py        # Phase 4 feature tests
+python test_e2e.py            # end-to-end pipeline
+python test_pipeline.py       # happy-path invoice
+python test_duplicate.py      # duplicate detection
+python test_all_scenarios.py  # edge-case invoices
+python test_phase4.py         # additional feature checks
 ```
 
-Test invoice PDFs are in `backend/test_invoices/` and the project root.
+Sample invoices live in `backend/test_invoices/`:
+
+| File | Expected outcome |
+|---|---|
+| `invoice_happy_path.pdf` | ✅ Approved |
+| `invoice_duplicate.pdf` / `ec01_duplicate.pdf` | ❌ Rejected (R01) |
+| `invoice_inactive_vendor.pdf` | ❌ Rejected (R03) |
+| `invoice_po_mismatch.pdf` / `ec03_po_mismatch.pdf` | ❌ Rejected (R08) |
+| `invoice_missing_number.pdf` / `ec02_missing_number.pdf` | ⚠️ Needs Review (R04) |
+| `ec04_poor_scan.pdf` | ⚠️ Needs Review (R07) |
+
+> Sample PDFs are git-ignored by default; regenerate them with `python create_test_invoices.py` and `python create_edge_case_invoices.py`.
+
+---
+
+## ☁️ Deployment
+
+### Backend → Render
+
+1. Create a **Web Service** from this repository. `render.yaml` at the repo root defines the service.
+2. Set environment variables in the Render dashboard:
+
+   | Variable | Value |
+   |---|---|
+   | `AI_PROVIDER` | `gemini` |
+   | `GEMINI_API_KEY` | your key (set as a secret) |
+   | `ALLOWED_ORIGINS` | your Vercel URL, e.g. `https://your-app.vercel.app` |
+   | `UPLOAD_DIR` | `uploads` |
+   | `TOLERANCE_THRESHOLD` | `0.02` |
+
+3. `backend/start.py` is the production entrypoint: it creates tables, **auto-seeds** vendors and POs if the database is empty, then starts Uvicorn on Render's `$PORT`.
+
+> [!IMPORTANT]
+> Scanned-PDF support requires the **Tesseract** binary to be available at runtime. On Render the `render.yaml` build command installs it automatically (`apt-get install -y tesseract-ocr`). For other platforms, install Tesseract manually (see [Prerequisites](#prerequisites)).
+
+> [!NOTE]
+> SQLite and uploaded files live on the container's ephemeral disk. For production use, switch `DATABASE_URL` to PostgreSQL and store PDFs in object storage (S3 / GCS).
+
+### Frontend → Vercel
+
+1. Import the repository and set **Root Directory** to `frontend_updated`.
+2. Add `NEXT_PUBLIC_API_URL` pointing at your Render backend URL.
+3. Deploy — Vercel auto-detects Next.js.
+
+---
+
+## 📁 Project Structure
+
+```text
+Invoice_system/
+├── render.yaml                      # Render service definition
+├── backend/
+│   ├── app/
+│   │   ├── main.py                  # FastAPI app, CORS, router registration
+│   │   ├── config.py                # Env-driven settings (pydantic-settings)
+│   │   ├── database.py              # SQLAlchemy engine and session
+│   │   ├── models/models.py         # ORM models
+│   │   ├── schemas/schemas.py       # Pydantic request/response schemas
+│   │   ├── routers/                 # invoices · vendors · purchase_orders · dashboard
+│   │   └── services/
+│   │       ├── pipeline.py          # 10-stage orchestrator
+│   │       ├── pdf_extractor.py     # PyMuPDF + Tesseract OCR
+│   │       ├── ai_extractor.py      # Gemini / OpenAI extraction
+│   │       ├── normalizer.py        # Cleaning and arithmetic validation
+│   │       ├── vendor_verifier.py   # GSTIN + fuzzy vendor lookup
+│   │       ├── po_matcher.py        # PO matching and balance tracking
+│   │       ├── duplicate_detector.py# Two-tier duplicate detection
+│   │       ├── rules_engine.py      # 11 business rules
+│   │       ├── decision_engine.py   # Final status from rule results
+│   │       └── run_manager.py       # Run / stage lifecycle helpers
+│   ├── start.py                     # Production entrypoint (tables → seed → uvicorn)
+│   ├── seed_data.py · reset_demo.py # Demo data helpers
+│   ├── test_*.py · test_invoices/   # Tests and sample PDFs
+│   └── requirements.txt
+└── frontend_updated/
+    ├── app/                         # Next.js App Router pages
+    │   ├── page.tsx                 # Landing page
+    │   ├── dashboard/ upload/ invoices/ runs/
+    │   └── layout.tsx               # Root layout (Navbar + Footer)
+    ├── components/                  # Navbar · Footer · StatusBadge
+    └── lib/                         # api.ts (Axios client) · types.ts
+```
+
+---
+
+## 🩺 Troubleshooting
+
+| Symptom | Likely cause and fix |
+|---|---|
+| UI shows *"Could not connect to backend"* | Backend isn't running, or `NEXT_PUBLIC_API_URL` is wrong. Restart the frontend after editing `.env.local`. |
+| Browser CORS error | Add your frontend origin to `ALLOWED_ORIGINS` on the backend. |
+| Scanned PDFs fail or return low confidence | Tesseract isn't installed or isn't on the path. On Windows the code expects `C:\Program Files\Tesseract-OCR\tesseract.exe`. |
+| Extraction fails | Check `AI_PROVIDER` and that the matching API key is set and valid. |
+| `npm install` reports peer-dependency conflicts | Run `npm install --legacy-peer-deps`. |
+| Demo gets cluttered | Run `python reset_demo.py`. |
+
+---
+
+## 🗺 Roadmap
+
+- [ ] PostgreSQL support and migrations (Alembic is already a dependency)
+- [ ] Object storage for uploaded PDFs
+- [ ] Authentication and role-based access (AP clerk / approver)
+- [ ] Manual approve / reject actions on *Needs Review* invoices
+- [ ] Multi-currency conversion for PO tolerance checks
+- [ ] CI pipeline running the test suite on every pull request
+
+---
+
+<div align="center">
+
+Built with FastAPI, Next.js and Gemini.
+
+</div>
