@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: invoice-processing-backend
+    name: invoice-ai-backend
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: apt-get update -y && apt-get install -y tesseract-ocr libgl1 libglib2.0-0 && pip install -r requirements.txt
     startCommand: python start.py
     envVars:
       - key: AI_PROVIDER
@@ -16,3 +16,5 @@ services:
         value: "0.02"
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: PYTHON_VERSION
+        value: "3.11.0"
