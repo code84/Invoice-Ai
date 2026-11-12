@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Blue background circle -->
+  <rect width="32" height="32" rx="8" fill="#2563EB"/>
+  <!-- Document shape -->
+  <rect x="8" y="6" width="13" height="18" rx="1.5" fill="white" opacity="0.15"/>
+  <rect x="8" y="6" width="13" height="18" rx="1.5" stroke="white" stroke-width="1.2"/>
+  <!-- Folded corner -->
+  <path d="M17 6 L21 10 L17 10 Z" fill="#2563EB" stroke="white" stroke-width="0.8" stroke-linejoin="round"/>
+  <!-- Lines on document -->
+  <line x1="11" y1="14" x2="18" y2="14" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="11" y1="17" x2="18" y2="17" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="11" y1="20" x2="15" y2="20" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Zap / AI indicator -->
+  <path d="M20 17 L18 21 L20.5 21 L19 25 L23 20 L20.5 20 L22 17 Z" fill="#93C5FD"/>
+</svg>
